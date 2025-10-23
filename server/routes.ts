@@ -182,7 +182,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/user-places", requireAuth, async (req, res) => {
     try {
       const data = insertUserPlaceSchema.parse(req.body);
-      
+
+      //  Convert string to Date before inserting
+      if (data.visitDate && typeof data.visitDate === "string") {
+        data.visitDate = new Date(data.visitDate);
+      }
+
       // Verify the place exists
       const place = await storage.getPlaceById(data.placeId);
       if (!place) {
@@ -199,6 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(400).json({ message: error.message || "Failed to add place" });
     }
   });
+
 
   // Contact Routes
   app.post("/api/contact", async (req, res) => {

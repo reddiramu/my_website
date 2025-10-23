@@ -21,6 +21,9 @@ export const places = pgTable("places", {
   imageUrl: text("image_url").notNull(),
   location: text("location").notNull(),
   category: text("category").notNull(), // e.g., "historical", "beach", "mountains", "spiritual"
+    //  New fields
+  openTime: text("open_time").notNull().default("09:00 AM"),
+  closeTime: text("close_time").notNull().default("05:00 PM"),
 });
 
 // Reviews table - user reviews for places
@@ -39,6 +42,7 @@ export const userPlaces = pgTable("user_places", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   placeId: varchar("place_id").notNull().references(() => places.id, { onDelete: "cascade" }),
   status: text("status").notNull(), // "explored", "upcoming"
+  visitDate: timestamp("visit_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -90,8 +94,9 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
 });
 
-export const insertPlaceSchema = createInsertSchema(places).omit({
-  id: true,
+export const insertPlaceSchema = createInsertSchema(places).extend({
+  openTime: z.string().optional(),
+  closeTime: z.string().optional(),
 });
 
 export const insertReviewSchema = createInsertSchema(reviews).omit({
@@ -107,6 +112,7 @@ export const insertUserPlaceSchema = createInsertSchema(userPlaces).omit({
   createdAt: true,
 }).extend({
   status: z.enum(["explored", "upcoming"]),
+  visitDate: z.union([z.string(), z.date()]).nullable().optional(), // optional if status is "upcoming"
 });
 
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({

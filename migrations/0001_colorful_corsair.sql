@@ -1,0 +1,1 @@
+ALTER TABLE "user_places" ADD COLUMN "visit_date" timestamp;

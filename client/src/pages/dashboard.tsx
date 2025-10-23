@@ -1,3 +1,5 @@
+import { Calendar } from "@/components/ui/calendar";
+import { DialogFooter } from "@/components/ui/dialog";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -23,7 +25,11 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  // for calendar popup
+  const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
+  const [selectedPlaceForPlan, setSelectedPlaceForPlan] = useState<string | null>(null);
   const [selectedPlaceForReview, setSelectedPlaceForReview] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   // Fetch current user
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -117,14 +123,31 @@ export default function Dashboard() {
     });
   };
 
-  const handleAddPlace = (placeId: string, status: "explored" | "upcoming") => {
+  const handleAddPlace = (
+    placeId: string,
+    status: "explored" | "upcoming",
+    visitDate?: any
+  ) => {
     if (!user) return;
+
+    // make sure visitDate is a Date before touching it
+    let finalDate = undefined;
+    if (visitDate) {
+      try {
+        finalDate = visitDate instanceof Date ? visitDate : new Date(visitDate);
+      } catch {
+        finalDate = undefined;
+      }
+    }
+
     addUserPlaceMutation.mutate({
       userId: user.id,
       placeId,
       status,
+      visitDate: finalDate ? finalDate.toISOString() : undefined,
     });
   };
+
 
   const handleOpenReviewDialog = (placeId: string) => {
     setSelectedPlaceForReview(placeId);
@@ -300,6 +323,16 @@ export default function Dashboard() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Open: {place.openTime} — Close: {place.closeTime}
+                    </p>
+                    <p className="text-sm leading-relaxed line-clamp-3">
+                      {place.description}
+                    </p>
+                    ...
+                  </CardContent>
+
+                  <CardContent className="space-y-4">
                     <p className="text-sm leading-relaxed line-clamp-3">
                       {place.description}
                     </p>
@@ -318,7 +351,10 @@ export default function Dashboard() {
                         size="sm" 
                         variant="outline"
                         className="flex-1"
-                        onClick={() => handleAddPlace(place.id, "upcoming")}
+                        onClick={() => {
+                          setSelectedPlaceForPlan(place.id); // store which place is being planned
+                          setCalendarDialogOpen(true);       // open the calendar dialog
+                        }}
                         disabled={addUserPlaceMutation.isPending}
                         data-testid={`button-mark-upcoming-${place.id}`}
                       >
@@ -507,6 +543,48 @@ export default function Dashboard() {
           )}
         </section>
       </div>
+
+
+      {/* Plan Visit Calendar Dialog */}
+      <Dialog open={calendarDialogOpen} onOpenChange={setCalendarDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-mono">Select Visit Date</DialogTitle>
+            <DialogDescription>
+              Choose a date starting from today.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center my-4">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              disabled={(date) => date < new Date()}
+            />
+          </div>
+          <DialogFooter className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setCalendarDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedDate && selectedPlaceForPlan) {
+                  handleAddPlace(selectedPlaceForPlan, "upcoming", selectedDate);
+                  setCalendarDialogOpen(false);
+                  setSelectedDate(undefined);
+                }
+              }}
+              disabled={!selectedDate}
+            >
+              Confirm Date
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       {/* Add Review Dialog */}
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
